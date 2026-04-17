@@ -1,4 +1,6 @@
 # src/ui/settings_panel.py
+import os
+import json
 from PyQt6.QtWidgets import (
     QFrame,
     QVBoxLayout,
@@ -22,20 +24,29 @@ class SettingsPanel(QFrame):
             SettingsPanel { background-color: #FFFFFF; border-left: 1px solid #E0E0E0; }
             QLabel { color: #333333; }
         """)
+
+        # --- Настройка путей AppData ---
+        appdata_path = os.getenv("APPDATA") or os.path.expanduser("~")  # Путь к Roaming
+        self.config_dir = os.path.join(appdata_path, "OmniZ_Server")
+        self.config_file = os.path.join(self.config_dir, "config.json")
+
+        # Создаем папку, если её нет
+        if not os.path.exists(self.config_dir):
+            os.makedirs(self.config_dir)
+
         self.init_ui()
+        self.load_settings()
 
     def init_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(30, 30, 30, 30)
 
-        # Заголовок
         self.title_lbl = QLabel()
         self.title_lbl.setFont(QFont("Inter", 16, QFont.Weight.Bold))
         layout.addWidget(self.title_lbl)
 
         layout.addSpacing(20)
 
-        # Поле пути к файлу + кнопка "Обзор"
         path_layout = QHBoxLayout()
         self.path_input = QLineEdit()
         self.path_input.setFixedSize(240, 36)
@@ -59,7 +70,6 @@ class SettingsPanel(QFrame):
 
         layout.addSpacing(20)
 
-        # Кнопки авторестарта
         self.ar_lbl = QLabel()
         self.ar_lbl.setFont(QFont("Inter", 11, QFont.Weight.Medium))
         layout.addWidget(self.ar_lbl)
@@ -83,15 +93,12 @@ class SettingsPanel(QFrame):
 
         layout.addSpacing(20)
 
-        # --- НОВОЕ: Заголовок "Параметры запуска" + Иконка подсказки ---
         cfg_header_layout = QHBoxLayout()
         self.cfg_lbl = QLabel()
         self.cfg_lbl.setFont(QFont("Inter", 11, QFont.Weight.Medium))
 
         self.cfg_hint = QLabel("❔")
-        self.cfg_hint.setCursor(
-            QCursor(Qt.CursorShape.WhatsThisCursor)
-        )  # Курсор с вопросиком
+        self.cfg_hint.setCursor(QCursor(Qt.CursorShape.WhatsThisCursor))
         self.cfg_hint.setStyleSheet(
             "color: #007BFF; font-size: 11pt; border: none; background: transparent;"
         )
@@ -101,27 +108,60 @@ class SettingsPanel(QFrame):
         cfg_header_layout.addStretch()
         layout.addLayout(cfg_header_layout)
 
-        # --- Поле ввода с дефолтными параметрами ---
         self.cfg_input = QTextEdit()
         self.cfg_input.setStyleSheet(
             "border: 1px solid #CCC; border-radius: 4px; padding: 10px; font-family: Consolas, monospace; background: white; color: black; font-size: 9pt;"
         )
+        layout.addWidget(self.cfg_input)
 
-        # Предзаполняем стандартными параметрами
+    # ================= ЛОГИКА СОХРАНЕНИЯ В APPDATA =================
+
+    def load_settings(self):
+        """Загрузка данных из JSON в папке AppData"""
         default_cfg = (
-            "-config=serverDZ.cfg\n"
-            "-port=2302\n"
-            "-profiles=profiles\n"
-            "-cpuCount=4\n"
-            "-doLogs\n"
-            "-adminLog\n"
-            "-freezeCheck\n"
-            "-mod=\n"
-            "-serverMod="
+            "-config=serverDZ.cfg\n-port=2302\n-profiles=profiles\n"
+            "-cpuCount=4\n-doLogs\n-adminLog\n-freezeCheck\n-mod=\n-serverMod="
         )
+
+        if os.path.exists(self.config_file):
+            try:
+                with open(self.config_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    self.path_input.setText(data.get("exe_path", ""))
+                    self.cfg_input.setPlainText(data.get("launch_params", default_cfg))
+
+                    saved_hours = data.get("auto_restart_hours", 0)
+                    time_values = [3, 6, 12]
+                    for i, btn in enumerate(self.ar_btns):
+                        btn.setChecked(time_values[i] == saved_hours)
+                return
+            except Exception as e:
+                print(f"Error loading config: {e}")
+
+        # Если файла нет, ставим дефолт
         self.cfg_input.setPlainText(default_cfg)
 
-        layout.addWidget(self.cfg_input)
+    def save_settings(self):
+        """Сохранение данных в JSON в папку AppData"""
+        saved_hours = 0
+        for i, btn in enumerate(self.ar_btns):
+            if btn.isChecked():
+                saved_hours = [3, 6, 12][i]
+                break
+
+        data = {
+            "exe_path": self.path_input.text().strip(),
+            "launch_params": self.cfg_input.toPlainText().strip(),
+            "auto_restart_hours": saved_hours,
+        }
+
+        try:
+            with open(self.config_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4, ensure_ascii=False)
+        except Exception as e:
+            print(f"Error saving config: {e}")
+
+    # ================= ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ =================
 
     def update_texts(self, current_lang):
         lang = LANG[current_lang]
@@ -130,13 +170,10 @@ class SettingsPanel(QFrame):
         self.browse_btn.setText(lang["browse"])
         self.ar_lbl.setText(lang["auto_restart"])
         self.cfg_lbl.setText(lang["launch_cfg"])
-        # Применяем текст подсказки из словаря
         self.cfg_hint.setToolTip(lang["cfg_tooltip"])
-
         suffix = "ч" if current_lang == "ru" else "h"
-        time_values = [3, 6, 12]
         for i, btn in enumerate(self.ar_btns):
-            btn.setText(f"{time_values[i]}{suffix}")
+            btn.setText(f"{[3, 6, 12][i]}{suffix}")
 
     def on_ar_btn_clicked(self, clicked_btn):
         for btn in self.ar_btns:
@@ -145,18 +182,13 @@ class SettingsPanel(QFrame):
 
     def browse_file(self):
         file_name, _ = QFileDialog.getOpenFileName(
-            self,
-            "Выберите исполняемый файл сервера",
-            "",
-            "Executable Files (*.exe);;All Files (*)",
+            self, "Выберите EXE", "", "EXE (*.exe)"
         )
         if file_name:
             self.path_input.setText(file_name)
 
     def get_restart_seconds(self):
-        """Возвращает выбранное время авторестарта в секундах"""
-        time_values = [3, 6, 12]
         for i, btn in enumerate(self.ar_btns):
             if btn.isChecked():
-                return time_values[i] * 3600  # Переводим часы в секунды
-        return 0  # Если ничего не выбрано (таймер выключен)
+                return [3, 6, 12][i] * 3600
+        return 0

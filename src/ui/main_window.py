@@ -16,9 +16,9 @@ from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRect
 from PyQt6.QtGui import QFont, QCursor
 
 # Импортируем наши модули (убедись, что пути в main.py настроены верно)
-from ui.settings_panel import SettingsPanel
-from utils.localization import LANG
-from utils.updater import UpdateChecker
+from src.ui.settings_panel import SettingsPanel
+from src.utils.localization import LANG
+from src.utils.updater import UpdateChecker
 
 
 class OmniZServerWindow(QMainWindow):
@@ -261,6 +261,8 @@ class OmniZServerWindow(QMainWindow):
                 "border: none; font-size: 18pt; color: #333333; background: transparent;"
             )
             self.settings_open = False
+            # --- НОВОЕ: Мгновенно сохраняем данные при скрытии панели! ---
+            self.settings_panel.save_settings()
 
         self.anim.finished.connect(lambda: self.setFixedSize(self.width(), 600))
         self.anim.start()
@@ -292,3 +294,15 @@ class OmniZServerWindow(QMainWindow):
     def change_language(self, index):
         self.current_lang = "ru" if index == 0 else "en"
         self.update_texts()
+
+    def closeEvent(self, a0):
+        """Срабатывает при закрытии окна"""
+        # Страховочное сохранение
+        self.settings_panel.save_settings()
+
+        # Убиваем сервер при выходе, чтобы он не остался висеть в памяти
+        if self.is_running and self.server_process:
+            self.server_process.terminate()
+
+        if a0:
+            a0.accept()  # Разрешаем окну закрыться
