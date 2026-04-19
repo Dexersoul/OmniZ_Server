@@ -25,6 +25,8 @@ class SettingsPanel(QFrame):
             QLabel { color: #333333; }
         """)
 
+        self.current_lang = "ru"
+
         self.init_ui()
 
     # === UI ===
@@ -131,6 +133,8 @@ class SettingsPanel(QFrame):
 
     # === HELPERS ===
     def update_texts(self, current_lang):
+        self.current_lang = current_lang
+
         lang = LANG[current_lang]
         self.title_lbl.setText(lang["settings_title"])
         self.path_input.setPlaceholderText(lang["path_placeholder"])
@@ -149,9 +153,11 @@ class SettingsPanel(QFrame):
                 btn.setChecked(False)
 
     def browse_file(self):
+        lang = LANG[self.current_lang]
+
         file_name, _ = QFileDialog.getOpenFileName(
             self,
-            "Выберите EXE",
+            lang["select_exe_title"],
             "",
             "EXE (*.exe)",
         )
@@ -163,6 +169,3 @@ class SettingsPanel(QFrame):
             if btn.isChecked():
                 return [3, 6, 12][index]
         return 0
-
-    def get_restart_seconds(self):
-        return self.get_selected_restart_hours() * 3600

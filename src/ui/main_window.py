@@ -196,6 +196,8 @@ class OmniZServerWindow(QMainWindow):
             self.restart_server()
 
     def toggle_server(self):
+        lang = LANG[self.current_lang]
+
         if not self.server_service.is_running:
             form_data = self.get_current_form_data()
             exe_path = form_data["exe_path"]
@@ -207,15 +209,18 @@ class OmniZServerWindow(QMainWindow):
                     if self.current_lang == "ru"
                     else "Specify path to DayZServer_x64.exe!"
                 )
-                title = "Ошибка" if self.current_lang == "ru" else "Error"
-                QMessageBox.warning(self, title, message)
+                QMessageBox.warning(self, lang["error_title"], message)
                 return
 
             try:
                 self.server_service.start_server(exe_path, launch_params)
                 self.start_restart_timer(form_data["auto_restart_hours"])
             except Exception as error:
-                QMessageBox.critical(self, "Error", f"Failed to start: {error}")
+                QMessageBox.critical(
+                    self,
+                    lang["error_title"],
+                    lang["failed_to_start"].format(error=error),
+                )
                 return
         else:
             self.server_service.stop_server()
@@ -224,6 +229,8 @@ class OmniZServerWindow(QMainWindow):
         self.update_texts()
 
     def restart_server(self):
+        lang = LANG[self.current_lang]
+
         if not self.server_service.is_running:
             return
 
@@ -237,7 +244,11 @@ class OmniZServerWindow(QMainWindow):
         except Exception as error:
             self.stop_restart_timer()
             self.update_texts()
-            QMessageBox.critical(self, "Error", f"Failed to restart: {error}")
+            QMessageBox.critical(
+                self,
+                lang["error_title"],
+                lang["failed_to_restart"].format(error=error),
+            )
             return
 
         self.update_texts()

@@ -24,6 +24,10 @@ LANG = {
             "<b>-adminLog</b> — Логирование действий администраторов<br>"
             "<b>-freezeCheck</b> — Остановка сервера при зависании (>5 мин)"
         ),
+        "select_exe_title": "Выберите EXE",
+        "error_title": "Ошибка",
+        "failed_to_start": "Не удалось запустить сервер: {error}",
+        "failed_to_restart": "Не удалось перезапустить сервер: {error}",
         "update_title": "Доступно обновление!",
         "update_msg": "Вышла новая версия OmniZ Server: v.{new_ver}\nВаша версия: v.{curr_ver}\n\nЧто нового:\n{changelog}\n\nХотите скачать обновление прямо сейчас?",
         "btn_yes": "Да, скачать",
@@ -53,6 +57,10 @@ LANG = {
             "<b>-adminLog</b> — Admin actions logging<br>"
             "<b>-freezeCheck</b> — Stop server on freeze (>5 min)"
         ),
+        "select_exe_title": "Select EXE",
+        "error_title": "Error",
+        "failed_to_start": "Failed to start server: {error}",
+        "failed_to_restart": "Failed to restart server: {error}",
         "update_title": "Update Available!",
         "update_msg": "A new version of OmniZ Server is available: v.{new_ver}\nYour version: v.{curr_ver}\n\nWhat's new:\n{changelog}\n\nDo you want to download the update now?",
         "btn_yes": "Yes, download",
