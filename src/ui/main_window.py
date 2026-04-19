@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QComboBox,
     QMessageBox,
+    QLayout,
 )
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRect
 from PyQt6.QtGui import QFont, QCursor, QCloseEvent
@@ -196,14 +197,20 @@ class OmniZServerWindow(QMainWindow):
         box.setIcon(icon)
         box.setWindowTitle(title)
         box.setText(text)
+
         box.setStyleSheet("""
             QMessageBox {
                 background-color: #FFFFFF;
             }
-            QMessageBox QLabel {
+            QMessageBox QLabel#qt_msgbox_label {
                 color: #222222;
                 font-size: 10pt;
-                min-width: 320px;
+                min-width: 0px;
+                max-width: 360px;
+            }
+            QMessageBox QLabel#qt_msgboxex_icon_label {
+                min-width: 32px;
+                min-height: 32px;
             }
             QMessageBox QPushButton {
                 min-width: 90px;
@@ -220,6 +227,17 @@ class OmniZServerWindow(QMainWindow):
                 background-color: #DCDCDC;
             }
         """)
+
+        text_label = box.findChild(QLabel, "qt_msgbox_label")
+        if text_label is not None:
+            text_label.setWordWrap(True)
+            text_label.setMinimumWidth(0)
+            text_label.setMaximumWidth(360)
+
+        layout = box.layout()
+        if layout is not None:
+            layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
+
         return box
 
     def show_warning_message(self, title, text):
