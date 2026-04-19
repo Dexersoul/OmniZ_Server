@@ -1,7 +1,6 @@
 # src/ui/main_window.py
-import os
-import subprocess
 import webbrowser
+
 from PyQt6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -13,66 +12,66 @@ from PyQt6.QtWidgets import (
     QMessageBox,
 )
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRect
-from PyQt6.QtGui import QFont, QCursor
+from PyQt6.QtGui import QFont, QCursor, QCloseEvent
 
-# Импортируем наши модули (убедись, что пути в main.py настроены верно)
+from src.services.server_service import ServerService
+from src.services.settings_service import SettingsService
 from src.ui.settings_panel import SettingsPanel
 from src.utils.localization import LANG
 from src.utils.updater import UpdateChecker
 
 
 class OmniZServerWindow(QMainWindow):
+    APP_VERSION = "0.1"
+    UPDATE_INFO_URL = ""
+
     def __init__(self):
         super().__init__()
-        # --- Системные параметры ---
+
         self.current_lang = "ru"
-        self.APP_VERSION = "0.1"
-        self.is_running = False
-        self.server_process = None
         self.time_left = 0
         self.settings_open = False
 
-        # --- Настройки окна ---
+        self.server_service = ServerService()
+        self.settings_service = SettingsService()
+
         self.setFixedSize(480, 600)
         self.setWindowTitle("OmniZ Server")
 
-        # Глобальный стиль: жесткие цвета для защиты от темной темы Windows
         self.setStyleSheet("""
             QMainWindow { background-color: #F8F9FA; }
             QLabel { color: #333333; font-family: 'Inter'; }
-            QToolTip { 
-                background-color: #2C2F33; 
-                color: #FFFFFF; 
-                border: 1px solid #555; 
-                border-radius: 4px; 
-                padding: 6px; 
+            QToolTip {
+                background-color: #2C2F33;
+                color: #FFFFFF;
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 6px;
                 font-family: 'Inter';
             }
         """)
 
         self.init_ui()
+        self.load_settings_into_ui()
         self.update_texts()
 
-        # Таймер для обратного отсчета
         self.countdown_timer = QTimer(self)
         self.countdown_timer.timeout.connect(self.tick_timer)
 
-        # Запуск фоновой проверки обновлений
         self.check_for_updates()
 
     def init_ui(self):
-        # Главный контейнер без Layout (для ручного позиционирования)
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
 
-        # --- ГЛАВНЫЙ ЭКРАН (Левая часть, 480x600) ---
         self.main_screen = QWidget(self.central_widget)
         self.main_screen.setGeometry(0, 0, 480, 600)
+
         ms_layout = QVBoxLayout(self.main_screen)
         ms_layout.setContentsMargins(20, 20, 20, 20)
 
-        # Верхняя панель (Заголовок, Язык, Шестеренка)
         top_bar = QHBoxLayout()
+
         self.title_lbl = QLabel("OmniZ Server")
         self.title_lbl.setFont(QFont("Inter", 18, QFont.Weight.Bold))
 
@@ -99,11 +98,10 @@ class OmniZServerWindow(QMainWindow):
         top_bar.addWidget(self.lang_cb)
         top_bar.addSpacing(10)
         top_bar.addWidget(self.settings_btn)
-        ms_layout.addLayout(top_bar)
 
+        ms_layout.addLayout(top_bar)
         ms_layout.addStretch()
 
-        # Статус сервера
         self.status_lbl = QLabel()
         self.status_lbl.setFont(QFont("Inter", 32, QFont.Weight.Bold))
         self.status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -111,7 +109,6 @@ class OmniZServerWindow(QMainWindow):
 
         ms_layout.addSpacing(40)
 
-        # Блок кнопок
         btn_layout = QVBoxLayout()
         btn_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -131,11 +128,10 @@ class OmniZServerWindow(QMainWindow):
         btn_layout.addWidget(self.start_btn)
         btn_layout.addSpacing(10)
         btn_layout.addWidget(self.restart_btn)
-        ms_layout.addLayout(btn_layout)
 
+        ms_layout.addLayout(btn_layout)
         ms_layout.addSpacing(10)
 
-        # Таймер
         self.timer_lbl = QLabel()
         self.timer_lbl.setFont(QFont("Inter", 10))
         self.timer_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -144,111 +140,152 @@ class OmniZServerWindow(QMainWindow):
 
         ms_layout.addStretch()
 
-        # Версия
         self.version_lbl = QLabel(f"v.{self.APP_VERSION}")
         self.version_lbl.setStyleSheet("color: gray;")
         ms_layout.addWidget(self.version_lbl, alignment=Qt.AlignmentFlag.AlignLeft)
 
-        # --- ОКНО НАСТРОЕК (Правая часть, 400x600) ---
-        # Изначально находится на X=480 (спрятано за правой границей)
         self.settings_panel = SettingsPanel(self.central_widget)
         self.settings_panel.setGeometry(480, 0, 400, 600)
 
-    # ================= ЛОГИКА СЕРВЕРА =================
+    def load_settings_into_ui(self):
+        settings_data = self.settings_service.load_settings()
+        self.settings_panel.set_form_data(settings_data)
+
+    def save_settings_from_ui(self):
+        settings_data = self.settings_panel.get_form_data()
+        self.settings_service.save_settings(settings_data)
+
+    def get_current_form_data(self):
+        return self.settings_panel.get_form_data()
+
+    def get_launch_params_list(self, launch_params_text):
+        return [
+            line.strip() for line in launch_params_text.splitlines() if line.strip()
+        ]
+
+    def start_restart_timer(self, auto_restart_hours):
+        restart_seconds = int(auto_restart_hours or 0) * 3600
+
+        if restart_seconds > 0:
+            self.time_left = restart_seconds
+            self.countdown_timer.start(1000)
+        else:
+            self.time_left = 0
+            self.countdown_timer.stop()
+
+    def stop_restart_timer(self):
+        self.time_left = 0
+        self.countdown_timer.stop()
+
+    def tick_timer(self):
+        if not self.server_service.is_running:
+            self.stop_restart_timer()
+            self.update_texts()
+            return
+
+        if self.time_left > 0:
+            self.time_left -= 1
+
+            hours = self.time_left // 3600
+            minutes = (self.time_left % 3600) // 60
+            seconds = self.time_left % 60
+
+            prefix = LANG[self.current_lang]["timer_prefix"]
+            self.timer_lbl.setText(f"{prefix}{hours:02d}:{minutes:02d}:{seconds:02d}")
+        else:
+            self.restart_server()
 
     def toggle_server(self):
-        if not self.is_running:
-            exe_path = self.settings_panel.path_input.text().strip()
+        if not self.server_service.is_running:
+            form_data = self.get_current_form_data()
+            exe_path = form_data["exe_path"]
+            launch_params = self.get_launch_params_list(form_data["launch_params"])
 
-            if not exe_path or not os.path.exists(exe_path):
-                msg = (
+            if not exe_path:
+                message = (
                     "Укажите путь к DayZServer_x64.exe!"
                     if self.current_lang == "ru"
                     else "Specify path to DayZServer_x64.exe!"
                 )
-                QMessageBox.warning(self, "Ошибка", msg)
+                title = "Ошибка" if self.current_lang == "ru" else "Error"
+                QMessageBox.warning(self, title, message)
                 return
-
-            params_text = self.settings_panel.cfg_input.toPlainText()
-            params_list = [p.strip() for p in params_text.split("\n") if p.strip()]
 
             try:
-                self.server_process = subprocess.Popen([exe_path] + params_list)
-                self.is_running = True
-
-                restart_seconds = self.settings_panel.get_restart_seconds()
-                if restart_seconds > 0:
-                    self.time_left = restart_seconds
-                    self.countdown_timer.start(1000)
-                else:
-                    self.time_left = 0
-                    self.countdown_timer.stop()
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to start: {e}")
+                self.server_service.start_server(exe_path, launch_params)
+                self.start_restart_timer(form_data["auto_restart_hours"])
+            except Exception as error:
+                QMessageBox.critical(self, "Error", f"Failed to start: {error}")
                 return
         else:
-            if self.server_process:
-                self.server_process.terminate()
-                self.server_process = None
-            self.is_running = False
-            self.countdown_timer.stop()
-            self.time_left = 0
+            self.server_service.stop_server()
+            self.stop_restart_timer()
 
         self.update_texts()
 
     def restart_server(self):
-        if self.is_running:
-            self.toggle_server()
-            QTimer.singleShot(1500, self.toggle_server)
+        if not self.server_service.is_running:
+            return
 
-    def tick_timer(self):
-        if self.time_left > 0:
-            self.time_left -= 1
-            h, m, s = (
-                self.time_left // 3600,
-                (self.time_left % 3600) // 60,
-                self.time_left % 60,
-            )
-            prefix = LANG[self.current_lang]["timer_prefix"]
-            self.timer_lbl.setText(f"{prefix}{h:02d}:{m:02d}:{s:02d}")
-        else:
-            self.restart_server()
+        form_data = self.get_current_form_data()
+        exe_path = form_data["exe_path"]
+        launch_params = self.get_launch_params_list(form_data["launch_params"])
 
-    # ================= СИСТЕМА ОБНОВЛЕНИЙ =================
+        try:
+            self.server_service.restart_server(exe_path, launch_params)
+            self.start_restart_timer(form_data["auto_restart_hours"])
+        except Exception as error:
+            self.stop_restart_timer()
+            self.update_texts()
+            QMessageBox.critical(self, "Error", f"Failed to restart: {error}")
+            return
+
+        self.update_texts()
 
     def check_for_updates(self):
-        # Замените на реальный URL вашего version.json на GitHub
-        url = "https://gist.githubusercontent.com/username/gist_id/raw/version.json"
-        self.updater = UpdateChecker(self.APP_VERSION, url)
+        if (
+            not self.UPDATE_INFO_URL
+            or "username" in self.UPDATE_INFO_URL
+            or "gist_id" in self.UPDATE_INFO_URL
+        ):
+            return
+
+        self.updater = UpdateChecker(self.APP_VERSION, self.UPDATE_INFO_URL)
         self.updater.update_available.connect(self.show_update_dialog)
         self.updater.start()
 
     def show_update_dialog(self, new_ver, url, changelog):
         lang = LANG[self.current_lang]
-        msg = lang["update_msg"].format(
-            new_ver=new_ver, curr_ver=self.APP_VERSION, changelog=changelog
+
+        message = lang["update_msg"].format(
+            new_ver=new_ver,
+            curr_ver=self.APP_VERSION,
+            changelog=changelog,
         )
 
         box = QMessageBox(self)
         box.setWindowTitle(lang["update_title"])
-        box.setText(msg)
+        box.setText(message)
         box.setStyleSheet("QLabel { color: #333; }")
+
         btn_yes = box.addButton(lang["btn_yes"], QMessageBox.ButtonRole.AcceptRole)
         box.addButton(lang["btn_no"], QMessageBox.ButtonRole.RejectRole)
+
         box.exec()
+
         if box.clickedButton() == btn_yes:
             webbrowser.open(url)
-
-    # ================= ИНТЕРФЕЙС =================
 
     def toggle_settings(self):
         self.setMinimumSize(0, 0)
         self.setMaximumSize(16777215, 16777215)
+
         self.anim = QPropertyAnimation(self, b"geometry")
         self.anim.setDuration(300)
         self.anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
 
         geo = self.geometry()
+
         if not self.settings_open:
             self.anim.setEndValue(QRect(geo.x(), geo.y(), 880, 600))
             self.settings_btn.setStyleSheet(
@@ -261,23 +298,25 @@ class OmniZServerWindow(QMainWindow):
                 "border: none; font-size: 18pt; color: #333333; background: transparent;"
             )
             self.settings_open = False
-            # --- НОВОЕ: Мгновенно сохраняем данные при скрытии панели! ---
-            self.settings_panel.save_settings()
+            self.save_settings_from_ui()
 
         self.anim.finished.connect(lambda: self.setFixedSize(self.width(), 600))
         self.anim.start()
 
     def update_texts(self):
         lang = LANG[self.current_lang]
+        is_running = self.server_service.is_running
+
         self.restart_btn.setText(lang["restart"])
 
-        if self.is_running:
+        if is_running:
             self.status_lbl.setText(lang["status_on"])
             self.status_lbl.setStyleSheet("color: #5CB85C;")
             self.start_btn.setText(lang["stop"])
             self.start_btn.setStyleSheet(
                 "background-color: #D9534F; color: white; font-size: 16pt; font-weight: 600; border-radius: 24px;"
             )
+
             if self.time_left == 0:
                 self.timer_lbl.setText(lang["timer_prefix"] + "OFF")
         else:
@@ -295,14 +334,9 @@ class OmniZServerWindow(QMainWindow):
         self.current_lang = "ru" if index == 0 else "en"
         self.update_texts()
 
-    def closeEvent(self, a0):
-        """Срабатывает при закрытии окна"""
-        # Страховочное сохранение
-        self.settings_panel.save_settings()
+    def closeEvent(self, a0: QCloseEvent | None):
+        self.save_settings_from_ui()
+        self.server_service.stop_server()
 
-        # Убиваем сервер при выходе, чтобы он не остался висеть в памяти
-        if self.is_running and self.server_process:
-            self.server_process.terminate()
-
-        if a0:
-            a0.accept()  # Разрешаем окну закрыться
+        if a0 is not None:
+            a0.accept()

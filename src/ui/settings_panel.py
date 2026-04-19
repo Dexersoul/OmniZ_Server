@@ -1,6 +1,4 @@
 # src/ui/settings_panel.py
-import os
-import json
 from PyQt6.QtWidgets import (
     QFrame,
     QVBoxLayout,
@@ -13,10 +11,12 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QFont, QCursor
 from PyQt6.QtCore import Qt
+
 from src.utils.localization import LANG
 
 
 class SettingsPanel(QFrame):
+    # === INIT ===
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedSize(400, 600)
@@ -25,18 +25,9 @@ class SettingsPanel(QFrame):
             QLabel { color: #333333; }
         """)
 
-        # --- Настройка путей AppData ---
-        appdata_path = os.getenv("APPDATA") or os.path.expanduser("~")  # Путь к Roaming
-        self.config_dir = os.path.join(appdata_path, "OmniZ_Server")
-        self.config_file = os.path.join(self.config_dir, "config.json")
-
-        # Создаем папку, если её нет
-        if not os.path.exists(self.config_dir):
-            os.makedirs(self.config_dir)
-
         self.init_ui()
-        self.load_settings()
 
+    # === UI ===
     def init_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(30, 30, 30, 30)
@@ -76,6 +67,7 @@ class SettingsPanel(QFrame):
 
         ar_layout = QHBoxLayout()
         self.ar_btns = []
+
         for hours in [3, 6, 12]:
             btn = QPushButton()
             btn.setFixedSize(50, 36)
@@ -88,6 +80,7 @@ class SettingsPanel(QFrame):
             btn.clicked.connect(lambda checked, b=btn: self.on_ar_btn_clicked(b))
             self.ar_btns.append(btn)
             ar_layout.addWidget(btn)
+
         ar_layout.addStretch()
         layout.addLayout(ar_layout)
 
@@ -114,55 +107,29 @@ class SettingsPanel(QFrame):
         )
         layout.addWidget(self.cfg_input)
 
-    # ================= ЛОГИКА СОХРАНЕНИЯ В APPDATA =================
+    # === FORM DATA ===
+    def set_form_data(self, data):
+        self.path_input.setText(data.get("exe_path", ""))
+        self.cfg_input.setPlainText(data.get("launch_params", ""))
 
-    def load_settings(self):
-        """Загрузка данных из JSON в папке AppData"""
-        default_cfg = (
-            "-config=serverDZ.cfg\n-port=2302\n-profiles=profiles\n"
-            "-cpuCount=4\n-doLogs\n-adminLog\n-freezeCheck\n-mod=\n-serverMod="
-        )
+        saved_hours = data.get("auto_restart_hours", 0)
 
-        if os.path.exists(self.config_file):
-            try:
-                with open(self.config_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    self.path_input.setText(data.get("exe_path", ""))
-                    self.cfg_input.setPlainText(data.get("launch_params", default_cfg))
+        for btn in self.ar_btns:
+            btn.setChecked(False)
 
-                    saved_hours = data.get("auto_restart_hours", 0)
-                    time_values = [3, 6, 12]
-                    for i, btn in enumerate(self.ar_btns):
-                        btn.setChecked(time_values[i] == saved_hours)
-                return
-            except Exception as e:
-                print(f"Error loading config: {e}")
-
-        # Если файла нет, ставим дефолт
-        self.cfg_input.setPlainText(default_cfg)
-
-    def save_settings(self):
-        """Сохранение данных в JSON в папку AppData"""
-        saved_hours = 0
-        for i, btn in enumerate(self.ar_btns):
-            if btn.isChecked():
-                saved_hours = [3, 6, 12][i]
+        for index, hours in enumerate([3, 6, 12]):
+            if hours == saved_hours:
+                self.ar_btns[index].setChecked(True)
                 break
 
-        data = {
+    def get_form_data(self):
+        return {
             "exe_path": self.path_input.text().strip(),
             "launch_params": self.cfg_input.toPlainText().strip(),
-            "auto_restart_hours": saved_hours,
+            "auto_restart_hours": self.get_selected_restart_hours(),
         }
 
-        try:
-            with open(self.config_file, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=4, ensure_ascii=False)
-        except Exception as e:
-            print(f"Error saving config: {e}")
-
-    # ================= ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ =================
-
+    # === HELPERS ===
     def update_texts(self, current_lang):
         lang = LANG[current_lang]
         self.title_lbl.setText(lang["settings_title"])
@@ -171,9 +138,10 @@ class SettingsPanel(QFrame):
         self.ar_lbl.setText(lang["auto_restart"])
         self.cfg_lbl.setText(lang["launch_cfg"])
         self.cfg_hint.setToolTip(lang["cfg_tooltip"])
+
         suffix = "ч" if current_lang == "ru" else "h"
-        for i, btn in enumerate(self.ar_btns):
-            btn.setText(f"{[3, 6, 12][i]}{suffix}")
+        for index, btn in enumerate(self.ar_btns):
+            btn.setText(f"{[3, 6, 12][index]}{suffix}")
 
     def on_ar_btn_clicked(self, clicked_btn):
         for btn in self.ar_btns:
@@ -182,13 +150,19 @@ class SettingsPanel(QFrame):
 
     def browse_file(self):
         file_name, _ = QFileDialog.getOpenFileName(
-            self, "Выберите EXE", "", "EXE (*.exe)"
+            self,
+            "Выберите EXE",
+            "",
+            "EXE (*.exe)",
         )
         if file_name:
             self.path_input.setText(file_name)
 
-    def get_restart_seconds(self):
-        for i, btn in enumerate(self.ar_btns):
+    def get_selected_restart_hours(self):
+        for index, btn in enumerate(self.ar_btns):
             if btn.isChecked():
-                return [3, 6, 12][i] * 3600
+                return [3, 6, 12][index]
         return 0
+
+    def get_restart_seconds(self):
+        return self.get_selected_restart_hours() * 3600

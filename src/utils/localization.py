@@ -13,7 +13,6 @@ LANG = {
         "browse": "Обзор",
         "auto_restart": "Авторестарт",
         "launch_cfg": "Параметры запуска",
-        # --- НОВОЕ: Подсказка для параметров ---
         "cfg_tooltip": (
             "<b>-config=serverDZ.cfg</b> — Имя, пароль и базовые настройки<br>"
             "<b>-port=2302</b> — Порт сервера<br>"
@@ -25,7 +24,6 @@ LANG = {
             "<b>-adminLog</b> — Логирование действий администраторов<br>"
             "<b>-freezeCheck</b> — Остановка сервера при зависании (>5 мин)"
         ),
-        # --- Обновления ---
         "update_title": "Доступно обновление!",
         "update_msg": "Вышла новая версия OmniZ Server: v.{new_ver}\nВаша версия: v.{curr_ver}\n\nЧто нового:\n{changelog}\n\nХотите скачать обновление прямо сейчас?",
         "btn_yes": "Да, скачать",
@@ -44,7 +42,6 @@ LANG = {
         "browse": "Browse",
         "auto_restart": "Auto-Restart",
         "launch_cfg": "Launch Parameters",
-        # --- НОВОЕ: Подсказка для параметров (Английский) ---
         "cfg_tooltip": (
             "<b>-config=serverDZ.cfg</b> — Basic settings, name, password<br>"
             "<b>-port=2302</b> — Server port<br>"
@@ -56,7 +53,6 @@ LANG = {
             "<b>-adminLog</b> — Admin actions logging<br>"
             "<b>-freezeCheck</b> — Stop server on freeze (>5 min)"
         ),
-        # --- Обновления ---
         "update_title": "Update Available!",
         "update_msg": "A new version of OmniZ Server is available: v.{new_ver}\nYour version: v.{curr_ver}\n\nWhat's new:\n{changelog}\n\nDo you want to download the update now?",
         "btn_yes": "Yes, download",
