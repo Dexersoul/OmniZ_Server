@@ -10,23 +10,41 @@ LANG = {
         "timer_prefix": "Таймер авторестарта\n",
         "timer_disabled": "OFF",
         "settings_title": "Настройки сервера",
+        "exe_path_label": "Файл сервера",
         "path_placeholder": "Путь к DayZServer_x64.exe",
         "browse": "Обзор",
         "auto_restart": "Авторестарт",
-        "launch_cfg": "Параметры запуска",
-        "cfg_tooltip": (
-            "<b>-config=serverDZ.cfg</b> — Имя, пароль и базовые настройки<br>"
-            "<b>-port=2302</b> — Порт сервера<br>"
-            "<b>-profiles=</b> — Папка для логов, дампов, BattlEye и Rcon<br>"
-            "<b>-cpuCount=</b> — Количество логических ядер процессора<br>"
-            "<b>-mod=</b> — Клиентские моды (разделять через ;)<br>"
-            "<b>-serverMod=</b> — Серверные моды<br>"
-            "<b>-doLogs</b> — Запись системных сообщений (RPT)<br>"
-            "<b>-adminLog</b> — Логирование действий администраторов<br>"
-            "<b>-freezeCheck</b> — Остановка сервера при зависании (>5 мин)"
+        "launch_group_main": "Основное",
+        "launch_group_runtime": "Производительность / запуск",
+        "launch_group_logs": "Логи и диагностика",
+        "launch_group_mods": "Моды",
+        "launch_group_additional": "Дополнительные параметры",
+        "config_file_label": "Файл конфигурации",
+        "port_label": "Порт сервера",
+        "profiles_dir_label": "Папка профилей",
+        "cpu_count_label": "Количество ядер CPU",
+        "do_logs_label": "Системные логи",
+        "admin_log_label": "Логи администратора",
+        "freeze_check_label": "Защита от зависания",
+        "mod_label": "Клиентские моды",
+        "server_mod_label": "Серверные моды",
+        "additional_params_label": "Дополнительные параметры запуска",
+        "config_placeholder": "serverDZ.cfg",
+        "port_placeholder": "2302",
+        "profiles_placeholder": "profiles",
+        "cpu_placeholder": "1–6",
+        "mod_placeholder": "@CF;@Dabs",
+        "server_mod_placeholder": "@ServerMod",
+        "additional_params_placeholder": "По одному параметру в строке",
+        "additional_params_tooltip": (
+            "Сюда можно добавить редкие или пользовательские параметры запуска.\n"
+            "Каждый параметр указывается с новой строки."
         ),
         "select_exe_title": "Выберите EXE",
         "error_title": "Ошибка",
+        "invalid_port": "Укажите корректный порт в диапазоне от 1 до 65535.",
+        "invalid_cpu_count": "Укажите количество ядер CPU от 1 до 6. DayZ сервер не использует больше 6.",
+        "invalid_launch_params": "Проверьте параметры запуска.",
         "exe_path_empty": "Укажите путь к DayZServer_x64.exe.",
         "exe_path_not_found": "Файл сервера не найден. Проверьте путь к DayZServer_x64.exe.",
         "exe_path_is_directory": "Указан путь к папке. Выберите файл DayZServer_x64.exe.",
@@ -53,23 +71,41 @@ LANG = {
         "timer_prefix": "Auto-Restart Timer\n",
         "timer_disabled": "OFF",
         "settings_title": "Server Settings",
+        "exe_path_label": "Server executable",
         "path_placeholder": "Path to DayZServer_x64.exe",
         "browse": "Browse",
         "auto_restart": "Auto-Restart",
-        "launch_cfg": "Launch Parameters",
-        "cfg_tooltip": (
-            "<b>-config=serverDZ.cfg</b> — Basic settings, name, password<br>"
-            "<b>-port=2302</b> — Server port<br>"
-            "<b>-profiles=</b> — Folder for logs, dumps, BattlEye, Rcon<br>"
-            "<b>-cpuCount=</b> — Number of logical CPU cores<br>"
-            "<b>-mod=</b> — Client mods (separated by ;)<br>"
-            "<b>-serverMod=</b> — Server mods<br>"
-            "<b>-doLogs</b> — System messages logging (RPT)<br>"
-            "<b>-adminLog</b> — Admin actions logging<br>"
-            "<b>-freezeCheck</b> — Stop server on freeze (>5 min)"
+        "launch_group_main": "Main",
+        "launch_group_runtime": "Performance / launch",
+        "launch_group_logs": "Logs and diagnostics",
+        "launch_group_mods": "Mods",
+        "launch_group_additional": "Additional parameters",
+        "config_file_label": "Config file",
+        "port_label": "Server port",
+        "profiles_dir_label": "Profiles folder",
+        "cpu_count_label": "CPU core count",
+        "do_logs_label": "System logs",
+        "admin_log_label": "Admin logs",
+        "freeze_check_label": "Freeze protection",
+        "mod_label": "Client mods",
+        "server_mod_label": "Server mods",
+        "additional_params_label": "Additional launch parameters",
+        "config_placeholder": "serverDZ.cfg",
+        "port_placeholder": "2302",
+        "profiles_placeholder": "profiles",
+        "cpu_placeholder": "1–6",
+        "mod_placeholder": "@CF;@Dabs",
+        "server_mod_placeholder": "@ServerMod",
+        "additional_params_placeholder": "One parameter per line",
+        "additional_params_tooltip": (
+            "Use this field for rare or custom launch parameters.\n"
+            "Enter one parameter per line."
         ),
         "select_exe_title": "Select EXE",
         "error_title": "Error",
+        "invalid_port": "Enter a valid port between 1 and 65535.",
+        "invalid_cpu_count": "Enter a CPU core count from 1 to 6. DayZ server does not use more than 6.",
+        "invalid_launch_params": "Check the launch parameters.",
         "exe_path_empty": "Specify the path to DayZServer_x64.exe.",
         "exe_path_not_found": "Server file was not found. Check the path to DayZServer_x64.exe.",
         "exe_path_is_directory": "The selected path points to a folder. Choose the DayZServer_x64.exe file.",

@@ -15,6 +15,10 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRect
 from PyQt6.QtGui import QFont, QCursor, QCloseEvent
 
+from src.services.launch_params_service import (
+    LaunchParamsService,
+    LaunchParamsValidationError,
+)
 from src.services.server_service import (
     ServerService,
     ServerServiceError,
@@ -49,6 +53,7 @@ class OmniZServerWindow(QMainWindow):
 
         self.server_service = ServerService()
         self.settings_service = SettingsService()
+        self.launch_params_service = LaunchParamsService()
 
         self.setFixedSize(480, 600)
         self.setWindowTitle("OmniZ Server")
@@ -176,22 +181,88 @@ class OmniZServerWindow(QMainWindow):
         self.settings_panel = SettingsPanel(self.central_widget)
         self.settings_panel.setGeometry(480, 0, 400, 600)
 
+    # === SETTINGS FLOW ===
     def load_settings_into_ui(self):
         settings_data = self.settings_service.load_settings()
-        self.settings_panel.set_form_data(settings_data)
+        launch_form_data = self.launch_params_service.parse_launch_params_text(
+            settings_data.get("launch_params", "")
+        )
 
-    def save_settings_from_ui(self):
-        settings_data = self.settings_panel.get_form_data()
-        self.settings_service.save_settings(settings_data)
+        form_data = {
+            "exe_path": settings_data.get("exe_path", ""),
+            "auto_restart_hours": settings_data.get("auto_restart_hours", 0),
+            **launch_form_data,
+        }
+
+        self.settings_panel.set_form_data(form_data)
+
+    def save_settings_from_ui(self, show_errors=True):
+        lang = LANG[self.current_lang]
+        form_data = self.settings_panel.get_form_data()
+
+        try:
+            settings_payload, normalized_form_data = (
+                self.build_settings_payload_from_form(form_data)
+            )
+        except LaunchParamsValidationError as error:
+            if show_errors:
+                self.show_warning_message(
+                    lang["error_title"],
+                    self.get_launch_params_error_message(error),
+                )
+            return False
+
+        self.settings_panel.set_form_data(normalized_form_data)
+        self.settings_service.save_settings(settings_payload)
+        return True
 
     def get_current_form_data(self):
         return self.settings_panel.get_form_data()
 
-    def get_launch_params_list(self, launch_params_text):
+    def normalize_form_data(self, form_data):
+        normalized_launch_data = self.launch_params_service.normalize_form_data(
+            form_data
+        )
+
+        return {
+            "exe_path": str(form_data.get("exe_path", "") or "").strip(),
+            "auto_restart_hours": int(form_data.get("auto_restart_hours", 0) or 0),
+            **normalized_launch_data,
+        }
+
+    def build_settings_payload_from_form(self, form_data):
+        normalized_form_data = self.normalize_form_data(form_data)
+
+        settings_payload = {
+            "exe_path": normalized_form_data["exe_path"],
+            "launch_params": self.launch_params_service.build_launch_params_text(
+                normalized_form_data
+            ),
+            "auto_restart_hours": normalized_form_data["auto_restart_hours"],
+        }
+
+        return settings_payload, normalized_form_data
+
+    def split_launch_params_text(self, launch_params_text):
         return [
-            line.strip() for line in launch_params_text.splitlines() if line.strip()
+            line.strip()
+            for line in str(launch_params_text or "").splitlines()
+            if line.strip()
         ]
 
+    def prepare_launch_context(self):
+        form_data = self.get_current_form_data()
+        settings_payload, normalized_form_data = self.build_settings_payload_from_form(
+            form_data
+        )
+
+        self.settings_panel.set_form_data(normalized_form_data)
+        self.settings_service.save_settings(settings_payload)
+
+        launch_params = self.split_launch_params_text(settings_payload["launch_params"])
+        return normalized_form_data["exe_path"], launch_params, normalized_form_data
+
+    # === MESSAGES ===
     def create_message_box(self, icon, title, text):
         box = QMessageBox(self)
         box.setIcon(icon)
@@ -248,6 +319,7 @@ class OmniZServerWindow(QMainWindow):
         box = self.create_message_box(QMessageBox.Icon.Critical, title, text)
         box.exec()
 
+    # === TIMER ===
     def start_restart_timer(self, auto_restart_hours):
         if not self.server_service.is_running:
             self.stop_restart_timer()
@@ -286,6 +358,7 @@ class OmniZServerWindow(QMainWindow):
         else:
             self.timer_lbl.setText(lang["timer_prefix"] + lang["timer_disabled"])
 
+    # === STATE ===
     def sync_server_state(self, force=False):
         is_running = self.server_service.is_running
 
@@ -309,6 +382,11 @@ class OmniZServerWindow(QMainWindow):
             self.update_timer_text()
         else:
             self.restart_server()
+
+    # === ERRORS ===
+    def get_launch_params_error_message(self, error):
+        lang = LANG[self.current_lang]
+        return lang.get(error.message_key, lang["invalid_launch_params"])
 
     def get_server_error_message(self, error):
         lang = LANG[self.current_lang]
@@ -351,16 +429,23 @@ class OmniZServerWindow(QMainWindow):
         else:
             self.show_warning_message(lang["error_title"], message)
 
+    # === SERVER ACTIONS ===
     def toggle_server(self):
         lang = LANG[self.current_lang]
 
         if not self.server_service.is_running:
-            form_data = self.get_current_form_data()
-            exe_path = form_data["exe_path"]
-            launch_params = self.get_launch_params_list(form_data["launch_params"])
-
             try:
+                exe_path, launch_params, normalized_form_data = (
+                    self.prepare_launch_context()
+                )
                 self.server_service.start_server(exe_path, launch_params)
+            except LaunchParamsValidationError as error:
+                self.show_warning_message(
+                    lang["error_title"],
+                    self.get_launch_params_error_message(error),
+                )
+                self.sync_server_state(force=True)
+                return
             except ServerServiceError as error:
                 self.show_server_error(error)
                 self.sync_server_state(force=True)
@@ -373,7 +458,7 @@ class OmniZServerWindow(QMainWindow):
                 self.sync_server_state(force=True)
                 return
 
-            self.start_restart_timer(form_data["auto_restart_hours"])
+            self.start_restart_timer(normalized_form_data["auto_restart_hours"])
         else:
             try:
                 self.server_service.stop_server()
@@ -400,12 +485,19 @@ class OmniZServerWindow(QMainWindow):
             self.sync_server_state(force=True)
             return
 
-        form_data = self.get_current_form_data()
-        exe_path = form_data["exe_path"]
-        launch_params = self.get_launch_params_list(form_data["launch_params"])
-
         try:
+            exe_path, launch_params, normalized_form_data = (
+                self.prepare_launch_context()
+            )
             self.server_service.restart_server(exe_path, launch_params)
+        except LaunchParamsValidationError as error:
+            self.stop_restart_timer()
+            self.show_warning_message(
+                lang["error_title"],
+                self.get_launch_params_error_message(error),
+            )
+            self.sync_server_state(force=True)
+            return
         except ServerNotRunningError:
             self.stop_restart_timer()
             self.sync_server_state(force=True)
@@ -424,9 +516,10 @@ class OmniZServerWindow(QMainWindow):
             )
             return
 
-        self.start_restart_timer(form_data["auto_restart_hours"])
+        self.start_restart_timer(normalized_form_data["auto_restart_hours"])
         self.sync_server_state(force=True)
 
+    # === UPDATES ===
     def check_for_updates(self):
         if (
             not self.UPDATE_INFO_URL
@@ -462,6 +555,7 @@ class OmniZServerWindow(QMainWindow):
         if box.clickedButton() == btn_yes:
             webbrowser.open(url)
 
+    # === UI ===
     def toggle_settings(self):
         self.setMinimumSize(0, 0)
         self.setMaximumSize(16777215, 16777215)
@@ -479,12 +573,14 @@ class OmniZServerWindow(QMainWindow):
             )
             self.settings_open = True
         else:
+            if not self.save_settings_from_ui():
+                return
+
             self.anim.setEndValue(QRect(geo.x(), geo.y(), 480, 600))
             self.settings_btn.setStyleSheet(
                 "border: none; font-size: 18pt; color: #333333; background: transparent;"
             )
             self.settings_open = False
-            self.save_settings_from_ui()
 
         self.anim.finished.connect(lambda: self.setFixedSize(self.width(), 600))
         self.anim.start()
@@ -520,7 +616,7 @@ class OmniZServerWindow(QMainWindow):
         self.sync_server_state(force=True)
 
     def closeEvent(self, a0: QCloseEvent | None):
-        self.save_settings_from_ui()
+        self.save_settings_from_ui(show_errors=False)
 
         try:
             self.server_service.stop_server()

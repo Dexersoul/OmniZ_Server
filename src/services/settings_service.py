@@ -2,29 +2,20 @@
 import json
 import os
 
+from src.services.launch_params_service import LaunchParamsService
+
 
 class SettingsService:
     # === SETTINGS PATHS ===
     CONFIG_DIR_NAME = "OmniZ_Server"
     CONFIG_FILE_NAME = "config.json"
 
-    # === DEFAULTS ===
-    DEFAULT_LAUNCH_PARAMS = (
-        "-config=serverDZ.cfg\n"
-        "-port=2302\n"
-        "-profiles=profiles\n"
-        "-cpuCount=4\n"
-        "-doLogs\n"
-        "-adminLog\n"
-        "-freezeCheck\n"
-        "-mod=\n"
-        "-serverMod="
-    )
-
+    # === INIT ===
     def __init__(self):
         appdata_path = os.getenv("APPDATA") or os.path.expanduser("~")
         self.config_dir = os.path.join(appdata_path, self.CONFIG_DIR_NAME)
         self.config_file = os.path.join(self.config_dir, self.CONFIG_FILE_NAME)
+        self.launch_params_service = LaunchParamsService()
 
     # === INTERNAL ===
     def _ensure_config_dir(self):
@@ -34,7 +25,7 @@ class SettingsService:
     def get_default_settings(self):
         return {
             "exe_path": "",
-            "launch_params": self.DEFAULT_LAUNCH_PARAMS,
+            "launch_params": self.launch_params_service.build_default_launch_params_text(),
             "auto_restart_hours": 0,
         }
 
